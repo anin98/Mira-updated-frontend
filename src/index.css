@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --mira-navy: 222 47% 11%;
+  --mira-blue: 217 91% 60%;
+  --mira-light: 210 40% 96%;
+  --mira-cyan: 189 94% 43%;
+
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 189 94% 43%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 217 91% 60%;
+  --radius: 0.5rem;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  line-height: 1.6;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--mira-blue) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--mira-blue) / 0.5);
+}
+
+/* Glass effect utility */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, hsl(var(--mira-blue)), hsl(var(--mira-cyan)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient backgrounds */
+.gradient-bg {
+  background: linear-gradient(135deg, hsl(var(--mira-blue)), hsl(var(--mira-cyan)));
+}
+
+.gradient-bg-subtle {
+  background: linear-gradient(135deg, hsl(var(--mira-light)), hsl(var(--background)));
+}
+
+/* Button base styles */
+.btn {
+  @apply inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply btn bg-primary text-white hover:bg-primary/90 focus:ring-primary;
+}
+
+.btn-secondary {
+  @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80 focus:ring-secondary;
+}
+
+.btn-outline {
+  @apply btn border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary;
+}
+
+.btn-ghost {
+  @apply btn hover:bg-muted focus:ring-muted;
+}
+
+/* Card styles */
+.card {
+  @apply rounded-xl bg-white shadow-sm border border-border p-6;
+}
+
+.card-hover {
+  @apply card transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+}
+
+/* Input styles */
+.input {
+  @apply w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
+}
+
+/* Animation utilities */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--background)) 50%, hsl(var(--muted)) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin;
+}
+
+/* Container */
+.container-custom {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Section spacing */
+.section {
+  @apply py-16 md:py-24;
+}
+
+/* Ant Design overrides for consistent styling */
+.ant-btn-primary {
+  background: hsl(var(--mira-blue)) !important;
+  border-color: hsl(var(--mira-blue)) !important;
+}
+
+.ant-btn-primary:hover {
+  background: hsl(var(--mira-blue) / 0.9) !important;
+  border-color: hsl(var(--mira-blue) / 0.9) !important;
+}
+
+.ant-input:focus,
+.ant-input-focused {
+  border-color: hsl(var(--mira-blue)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--mira-blue) / 0.1) !important;
+}
+
+.ant-select-focused .ant-select-selector {
+  border-color: hsl(var(--mira-blue)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--mira-blue) / 0.1) !important;
+}
