@@ -9,52 +9,68 @@ import {
   CheckCircle,
   Truck,
   ArrowRight,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react'
-import { Table, Tag } from 'antd'
+import { Table, Tag, message } from 'antd'
 import { useAuth } from '../../contexts/AuthContext'
-
-const mockOrders = [
-  {
-    id: '#12345',
-    date: '2024-01-15',
-    items: ['Wireless Headphones', 'Phone Case'],
-    total: '৳2,999',
-    status: 'delivered',
-  },
-  {
-    id: '#12344',
-    date: '2024-01-12',
-    items: ['Smart Watch Pro'],
-    total: '৳5,000',
-    status: 'shipped',
-  },
-  {
-    id: '#12343',
-    date: '2024-01-10',
-    items: ['Bluetooth Speaker', 'USB Cable'],
-    total: '৳1,850',
-    status: 'processing',
-  },
-]
+import apiClient from '../../api/axios'
+import { ENDPOINTS } from '../../api/config'
 
 const statusConfig = {
   pending: { color: 'orange', icon: Clock, text: 'Pending' },
   processing: { color: 'blue', icon: Package, text: 'Processing' },
   shipped: { color: 'cyan', icon: Truck, text: 'Shipped' },
   delivered: { color: 'green', icon: CheckCircle, text: 'Delivered' },
+  cancelled: { color: 'red', icon: AlertCircle, text: 'Cancelled' },
+  // Uppercase variants from API
+  PENDING: { color: 'orange', icon: Clock, text: 'Pending' },
+  PROCESSING: { color: 'blue', icon: Package, text: 'Processing' },
+  SHIPPED: { color: 'cyan', icon: Truck, text: 'Shipped' },
+  DELIVERED: { color: 'green', icon: CheckCircle, text: 'Delivered' },
+  CANCELLED: { color: 'red', icon: AlertCircle, text: 'Cancelled' },
 }
 
 export default function CustomerDashboard() {
   const { user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
+  const [orders, setOrders] = useState([])
+  const [error, setError] = useState(null)
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await apiClient.get(ENDPOINTS.ORDERS.LIST)
+      const ordersData = Array.isArray(response.data) ? response.data : (response.data.results || [])
+
+      const mapped = ordersData.map(order => ({
+        id: order.id,
+        date: new Date(order.created_at).toLocaleDateString(),
+        items: order.items
+          ? order.items.map(item => item.product_name || item.name || 'Item')
+          : [],
+        total: parseFloat(order.total_amount || 0),
+        status: (order.status || 'pending').toLowerCase(),
+      }))
+
+      setOrders(mapped)
+    } catch (err) {
+      console.error('Failed to fetch orders:', err)
+      setError('Failed to load orders')
+      message.error('Failed to load orders')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/auth')
       return
     }
-    setTimeout(() => setLoading(false), 500)
+    fetchOrders()
   }, [isAuthenticated, navigate])
 
   const orderColumns = [
@@ -62,7 +78,7 @@ export default function CustomerDashboard() {
       title: 'Order ID',
       dataIndex: 'id',
       key: 'id',
-      render: (id) => <span className="font-medium">{id}</span>,
+      render: (id) => <span className="font-medium font-mono text-xs">#{id}</span>,
     },
     {
       title: 'Date',
@@ -75,7 +91,11 @@ export default function CustomerDashboard() {
       key: 'items',
       render: (items) => (
         <span className="text-muted-foreground">
-          {items.length > 1 ? `${items[0]} +${items.length - 1} more` : items[0]}
+          {items.length === 0
+            ? '—'
+            : items.length > 1
+              ? `${items[0]} +${items.length - 1} more`
+              : items[0]}
         </span>
       ),
     },
@@ -83,14 +103,14 @@ export default function CustomerDashboard() {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      render: (total) => <span className="font-semibold">{total}</span>,
+      render: (total) => <span className="font-semibold">৳{total.toLocaleString()}</span>,
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
-        const config = statusConfig[status]
+        const config = statusConfig[status] || statusConfig.pending
         return (
           <Tag color={config.color} className="flex items-center gap-1 w-fit">
             <config.icon size={12} />
@@ -101,10 +121,14 @@ export default function CustomerDashboard() {
     },
   ]
 
+  const totalOrders = orders.length
+  const inProgress = orders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status)).length
+  const delivered = orders.filter(o => o.status === 'delivered').length
+
   const stats = [
-    { label: 'Total Orders', value: mockOrders.length, icon: ShoppingBag, color: 'bg-blue-500' },
-    { label: 'In Progress', value: 2, icon: Truck, color: 'bg-orange-500' },
-    { label: 'Delivered', value: 1, icon: CheckCircle, color: 'bg-green-500' },
+    { label: 'Total Orders', value: totalOrders, icon: ShoppingBag, color: 'bg-blue-500' },
+    { label: 'In Progress', value: inProgress, icon: Truck, color: 'bg-orange-500' },
+    { label: 'Delivered', value: delivered, icon: CheckCircle, color: 'bg-green-500' },
   ]
 
   return (
@@ -152,18 +176,42 @@ export default function CustomerDashboard() {
             <div className="card p-0 overflow-hidden">
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Recent Orders</h2>
-                <Link to="/orders" className="text-primary text-sm hover:underline flex items-center gap-1">
-                  View All
-                  <ArrowRight size={14} />
-                </Link>
+                <button
+                  onClick={fetchOrders}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="Refresh orders"
+                >
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                </button>
               </div>
-              <Table
-                dataSource={mockOrders}
-                columns={orderColumns}
-                rowKey="id"
-                pagination={false}
-                loading={loading}
-              />
+              {error && !loading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <AlertCircle size={32} className="mx-auto mb-2 text-red-400" />
+                  <p>{error}</p>
+                  <button
+                    onClick={fetchOrders}
+                    className="text-primary text-sm hover:underline mt-2"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : orders.length === 0 && !loading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <ShoppingBag size={32} className="mx-auto mb-2 opacity-50" />
+                  <p>No orders yet</p>
+                  <Link to="/chat" className="text-primary text-sm hover:underline mt-2 inline-block">
+                    Start shopping with MIRA
+                  </Link>
+                </div>
+              ) : (
+                <Table
+                  dataSource={orders}
+                  columns={orderColumns}
+                  rowKey="id"
+                  pagination={orders.length > 5 ? { pageSize: 5 } : false}
+                  loading={loading}
+                />
+              )}
             </div>
           </div>
 
@@ -200,16 +248,7 @@ export default function CustomerDashboard() {
                   <ArrowRight size={18} className="text-muted-foreground" />
                 </Link>
 
-                <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                    <Package size={20} className="text-orange-600" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="font-medium">Track Order</p>
-                    <p className="text-sm text-muted-foreground">Check delivery status</p>
-                  </div>
-                  <ArrowRight size={18} className="text-muted-foreground" />
-                </button>
+             
               </div>
             </div>
 

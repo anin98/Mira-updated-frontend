@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { User, Mail, MapPin, ArrowRight, CheckCircle, Sparkles } from 'lucide-react'
+import { MapPin, ArrowRight, Sparkles } from 'lucide-react'
 import { message } from 'antd'
 import { useAuth } from '../../contexts/AuthContext'
 import apiClient from '../../api/axios'
@@ -51,7 +51,7 @@ export default function CustomerAuth() {
           firstName: customer.first_name,
           lastName: customer.last_name,
           email: customer.email,
-          displayName: customer.display_name,
+          name: customer.display_name,
         })
         navigate('/customer-dashboard')
       } else {
@@ -59,7 +59,7 @@ export default function CustomerAuth() {
           firstName: customer.first_name || '',
           lastName: customer.last_name || '',
           email: customer.email || '',
-          displayName: customer.display_name || '',
+          name: customer.display_name || '',
           address: customer.address || '',
         })
       }
@@ -90,19 +90,21 @@ export default function CustomerAuth() {
     setSubmitting(true)
     try {
       const userId = localStorage.getItem('userId')
+      const verifiedPhone = localStorage.getItem('verifiedPhone')
       await apiClient.put(ENDPOINTS.CUSTOMERS.UPDATE(userId), {
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
-        display_name: formData.displayName || `${formData.firstName} ${formData.lastName}`,
+        name: formData.displayName || `${formData.firstName} ${formData.lastName}`,
         address: formData.address,
+        ...(verifiedPhone && { phone_number: verifiedPhone }),
       })
 
       updateUser({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        displayName: formData.displayName || `${formData.firstName} ${formData.lastName}`,
+        name: formData.displayName || `${formData.firstName} ${formData.lastName}`,
       })
 
       message.success('Profile completed successfully!')

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
-import { MessageSquare, Search, User, ChevronRight, X, RefreshCw, Send, Zap, CheckCircle, Clock } from 'lucide-react'
-import { Badge, Input, message as antMessage } from 'antd'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { MessageSquare, Search, User, ChevronRight, X, RefreshCw, Send, Zap, HelpCircle, ToggleLeft, ToggleRight, Pencil, Check, ChevronDown } from 'lucide-react'
+import { Badge, Input, message as antMessage, Tooltip } from 'antd'
 
 const API_BASE = 'https://api.grayscale-technologies.com/api'
 
@@ -12,7 +12,13 @@ export default function ConversationsView() {
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [newMessage, setNewMessage] = useState('')
+  const [switchingMode, setSwitchingMode] = useState(false)
+  const [editingSuggestionId, setEditingSuggestionId] = useState(null)
+  const [editedContent, setEditedContent] = useState('')
+  const [sentSuggestionIds, setSentSuggestionIds] = useState(new Set())
+  const [expandedSentIds, setExpandedSentIds] = useState(new Set())
   const messagesEndRef = useRef(null)
+  const pollIntervalRef = useRef(null)
 
   // Helper to get headers
   const getHeaders = () => {
@@ -34,7 +40,7 @@ export default function ConversationsView() {
       if (!response.ok) throw new Error('Failed to load conversations')
 
       const data = await response.json()
-      
+
       // Map API data to UI format
       const mappedData = data.map(item => ({
         id: item.session_id || item.id,
@@ -42,13 +48,25 @@ export default function ConversationsView() {
         phone: item.customer_phone || '',
         lastMessage: item.last_message || 'No messages',
         timestamp: item.updated_at || item.created_at,
-        unread: 0, // API doesn't seem to provide unread count yet
+        unread: 0,
         status: item.status || 'active',
-        mode: item.mode || 'manual',
-        messageCount: item.message_count || 0
+        mode: item.mode || 'copilot',
+        messageCount: item.message_count || 0,
+        channel: item.channel || 'web',
+        company_id: item.company_id || null,
       }))
 
       setConversations(mappedData)
+
+      // Update selected conversation's mode if it changed server-side
+      setSelectedConversation(prev => {
+        if (!prev) return prev
+        const updated = mappedData.find(c => c.id === prev.id)
+        if (updated) {
+          return { ...prev, status: updated.status, channel: updated.channel, company_id: updated.company_id }
+        }
+        return prev
+      })
     } catch (error) {
       console.error(error)
       antMessage.error('Could not load conversations')
@@ -58,9 +76,8 @@ export default function ConversationsView() {
   }
 
   // Fetch Messages for a specific conversation
-  const fetchMessages = async (sessionId) => {
+  const fetchMessages = useCallback(async (sessionId) => {
     try {
-      setMessagesLoading(true)
       const response = await fetch(`${API_BASE}/dashboard/${sessionId}/messages-latest/`, {
         headers: getHeaders(),
       })
@@ -68,35 +85,108 @@ export default function ConversationsView() {
       if (!response.ok) throw new Error('Failed to load messages')
 
       const data = await response.json()
-      
-      // Map API messages (Newest first) to UI (Oldest first for chat view)
-      // API Role: 'user' = customer, 'assistant'/'suggestion' = assistant/ai
+
+      // Map API messages - differentiate suggestions from regular assistant messages
       const mappedMessages = Array.isArray(data) ? data.map(msg => ({
         id: msg.id,
         content: msg.content,
-        sender: msg.role === 'user' ? 'customer' : 'assistant',
+        sender: msg.role === 'user' ? 'customer' : msg.role === 'suggestion' ? 'suggestion' : 'assistant',
+        role: msg.role,
         time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timestamp: msg.created_at
+        timestamp: msg.created_at,
+        based_on_suggestion: msg.based_on_suggestion,
       })).reverse() : []
 
       return mappedMessages
     } catch (error) {
       console.error(error)
-      antMessage.error('Could not load chat history')
-      return []
-    } finally {
-      setMessagesLoading(false)
+      return null // Return null to indicate error (vs empty array)
     }
-  }
+  }, [])
 
   // Handle selecting a conversation
   const handleSelectConversation = async (conv) => {
+    setSentSuggestionIds(new Set())
+    setExpandedSentIds(new Set())
+    setEditingSuggestionId(null)
+    setEditedContent('')
     setSelectedConversation({ ...conv, messages: [] })
+    setMessagesLoading(true)
     const messages = await fetchMessages(conv.id)
-    setSelectedConversation({ ...conv, messages })
+    if (messages !== null) {
+      setSelectedConversation({ ...conv, messages })
+    }
+    setMessagesLoading(false)
   }
 
-  // Handle Sending Message
+  // Poll messages for the selected conversation
+  useEffect(() => {
+    if (!selectedConversation?.id) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      return
+    }
+
+    const pollMessages = async () => {
+      const messages = await fetchMessages(selectedConversation.id)
+      if (messages !== null) {
+        setSelectedConversation(prev => {
+          if (!prev || prev.id !== selectedConversation.id) return prev
+          // Only update if message count changed to avoid unnecessary re-renders
+          if (prev.messages.length !== messages.length) {
+            return { ...prev, messages }
+          }
+          return prev
+        })
+      }
+    }
+
+    pollIntervalRef.current = setInterval(pollMessages, 5000) // Poll every 5 seconds
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+    }
+  }, [selectedConversation?.id, fetchMessages])
+
+  // Switch mode (Autopilot <-> Co-pilot)
+  const handleSwitchMode = async () => {
+    if (!selectedConversation || switchingMode) return
+
+    try {
+      setSwitchingMode(true)
+      const response = await fetch(`${API_BASE}/dashboard/${selectedConversation.id}/switch-mode/`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({}),
+      })
+
+      if (!response.ok) throw new Error('Failed to switch mode')
+
+      const data = await response.json()
+      // API returns { status: "Session switched to AUTOPILOT" } or "...COPILOT"
+      const statusText = (data.status || '').toUpperCase()
+      const newMode = statusText.includes('AUTOPILOT') ? 'autopilot' : statusText.includes('COPILOT') ? 'copilot' : (selectedConversation.mode === 'autopilot' ? 'copilot' : 'autopilot')
+
+      setSelectedConversation(prev => ({ ...prev, mode: newMode }))
+      setConversations(prev => prev.map(c =>
+        c.id === selectedConversation.id ? { ...c, mode: newMode } : c
+      ))
+
+      antMessage.success(`Switched to ${newMode === 'autopilot' ? 'Autopilot' : 'Co-pilot'} mode`)
+    } catch (error) {
+      console.error(error)
+      antMessage.error('Failed to switch mode')
+    } finally {
+      setSwitchingMode(false)
+    }
+  }
+
+  // Handle Sending Message (manual reply in co-pilot mode)
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return
 
@@ -114,13 +204,14 @@ export default function ConversationsView() {
       if (!response.ok) throw new Error('Failed to send message')
 
       setNewMessage('')
-      // Refresh messages to show the sent message and any AI response
+      // Refresh messages to show the sent message
       const updatedMessages = await fetchMessages(selectedConversation.id)
-      setSelectedConversation(prev => ({ ...prev, messages: updatedMessages }))
-      
-      // Refresh conversation list to update last message preview
+      if (updatedMessages !== null) {
+        setSelectedConversation(prev => ({ ...prev, messages: updatedMessages }))
+      }
+
       fetchConversations()
-      
+
     } catch (error) {
       antMessage.error('Failed to send message')
     } finally {
@@ -128,10 +219,67 @@ export default function ConversationsView() {
     }
   }
 
+  // Handle clicking a suggestion to send it as a reply
+  const handleUseSuggestion = async (suggestion) => {
+    if (!selectedConversation || sending) return
+
+    try {
+      setSending(true)
+
+      // Send the suggestion as an agent reply using /chat/reply/
+      const response = await fetch(`${API_BASE}/chat/reply/`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          session_id: selectedConversation.id,
+          content: suggestion.content,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to send suggestion')
+
+      antMessage.success('Suggestion sent as reply')
+      setSentSuggestionIds(prev => new Set(prev).add(suggestion.id))
+      setEditingSuggestionId(null)
+      setEditedContent('')
+
+      // Refresh messages
+      const updatedMessages = await fetchMessages(selectedConversation.id)
+      if (updatedMessages !== null) {
+        setSelectedConversation(prev => ({ ...prev, messages: updatedMessages }))
+      }
+
+      fetchConversations()
+    } catch (error) {
+      console.error(error)
+      antMessage.error('Failed to send suggestion')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  // Handle editing a suggestion before sending
+  const handleEditSuggestion = (msg) => {
+    setEditingSuggestionId(msg.id)
+    setEditedContent(msg.content.replace(/\*\*/g, ''))
+  }
+
+  // Send the edited suggestion
+  const handleSendEditedSuggestion = async (msg) => {
+    if (!editedContent.trim()) return
+    await handleUseSuggestion({ ...msg, content: editedContent })
+  }
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingSuggestionId(null)
+    setEditedContent('')
+  }
+
   // Initial Load & Polling
   useEffect(() => {
     fetchConversations()
-    const interval = setInterval(fetchConversations, 30000) // Poll every 30s
+    const interval = setInterval(fetchConversations, 30000)
     return () => clearInterval(interval)
   }, [])
 
@@ -163,6 +311,20 @@ export default function ConversationsView() {
     autopilot: 'bg-purple-100 text-purple-700',
     closed: 'bg-gray-100 text-gray-700',
   }
+
+  // Format message content: convert **bold** to <strong> tags
+  const formatMessageContent = (text) => {
+    if (!text) return ''
+    const parts = text.split(/(\*\*.*?\*\*)/g)
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>
+      }
+      return part
+    })
+  }
+
+  const isAutopilot = selectedConversation?.mode === 'autopilot'
 
   return (
     <div className="h-[calc(100vh-140px)] flex gap-6">
@@ -208,8 +370,13 @@ export default function ConversationsView() {
                     </div>
                     <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
                     <div className="flex items-center gap-2 mt-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        conversation.mode === 'autopilot' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {conversation.mode === 'autopilot' ? 'Autopilot' : 'Co-pilot'}
+                      </span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[conversation.status] || statusColors.active}`}>
-                        {conversation.mode === 'autopilot' ? 'Autopilot' : conversation.status}
+                        {conversation.status}
                       </span>
                     </div>
                   </div>
@@ -244,15 +411,44 @@ export default function ConversationsView() {
                 <p className="text-sm text-muted-foreground">{selectedConversation.phone}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-                {selectedConversation.mode === 'autopilot' && (
-                    <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                        <Zap size={12} /> Autopilot
-                    </span>
-                )}
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[selectedConversation.status] || 'bg-gray-100'}`}>
+            <div className="flex items-center gap-3">
+              {/* Mode Toggle */}
+              <div className="flex items-center gap-2">
+                <Tooltip title={
+                  <div style={{ maxWidth: 260 }}>
+                    <p style={{ fontWeight: 600, marginBottom: 4 }}>Autopilot Mode</p>
+                    <p style={{ marginBottom: 8 }}>AI takes full control and replies to customers automatically.</p>
+                    <p style={{ fontWeight: 600, marginBottom: 4 }}>Co-pilot Mode</p>
+                    <p>You reply manually. AI suggests responses that you can review and send with one click.</p>
+                  </div>
+                }>
+                  <HelpCircle size={16} className="text-muted-foreground cursor-help" />
+                </Tooltip>
+
+                <button
+                  onClick={handleSwitchMode}
+                  disabled={switchingMode}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    isAutopilot
+                      ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  } ${switchingMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  {switchingMode ? (
+                    <div className="spinner w-3 h-3 border-2" />
+                  ) : isAutopilot ? (
+                    <Zap size={14} />
+                  ) : (
+                    <User size={14} />
+                  )}
+                  {isAutopilot ? 'Autopilot' : 'Co-pilot'}
+                  {isAutopilot ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                </button>
+              </div>
+
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[selectedConversation.status] || 'bg-gray-100'}`}>
                 {selectedConversation.status}
-                </span>
+              </span>
             </div>
           </div>
 
@@ -260,34 +456,142 @@ export default function ConversationsView() {
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messagesLoading ? (
                 <div className="flex justify-center py-10"><div className="spinner" /></div>
-            ) : selectedConversation.messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.sender === 'customer' ? '' : 'justify-end'}`}
-              >
+            ) : selectedConversation.messages.map((msg) => {
+              // Render suggestion messages as clickable suggestion cards
+              if (msg.sender === 'suggestion') {
+                const isEditing = editingSuggestionId === msg.id
+                const isSent = sentSuggestionIds.has(msg.id)
+
+                // Minimized state after sending (expandable)
+                if (isSent) {
+                  const isExpanded = expandedSentIds.has(msg.id)
+                  const toggleExpand = () => {
+                    setExpandedSentIds(prev => {
+                      const next = new Set(prev)
+                      next.has(msg.id) ? next.delete(msg.id) : next.add(msg.id)
+                      return next
+                    })
+                  }
+
+                  return (
+                    <div key={msg.id} className="flex justify-end">
+                      <div className="flex flex-col items-end">
+                        <button
+                          onClick={toggleExpand}
+                          className="px-3 py-1.5 rounded-full border border-green-200 bg-green-50 flex items-center gap-1.5 hover:bg-green-100 transition-colors cursor-pointer"
+                        >
+                          <Check size={12} className="text-green-600" />
+                          <span className="text-xs text-green-700">Suggestion sent</span>
+                          <span className="text-xs text-green-400">{msg.time}</span>
+                          <ChevronDown size={12} className={`text-green-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isExpanded && (
+                          <div className="mt-1.5 max-w-[85%] px-4 py-3 rounded-2xl rounded-tr-none border border-green-200 bg-green-50/50">
+                            <p className="text-sm whitespace-pre-wrap text-green-900 opacity-70">{formatMessageContent(msg.content)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div key={msg.id} className="flex justify-end">
+                    <div className="max-w-[85%] w-full">
+                      <div className="text-xs text-muted-foreground mb-1 text-right flex items-center justify-end gap-1">
+                        <Zap size={10} />
+                        AI Suggestion
+                      </div>
+                      {isEditing ? (
+                        <div className="px-4 py-3 rounded-2xl rounded-tr-none border-2 border-purple-400 bg-purple-50">
+                          <textarea
+                            className="w-full bg-white border border-purple-200 rounded-lg p-3 text-sm text-purple-900 focus:outline-none focus:border-purple-400 resize-y"
+                            rows={8}
+                            style={{ minHeight: '160px' }}
+                            value={editedContent}
+                            onChange={(e) => setEditedContent(e.target.value)}
+                            autoFocus
+                          />
+                          <div className="flex items-center justify-end gap-2 mt-2">
+                            <button
+                              onClick={handleCancelEdit}
+                              className="px-3 py-1 text-xs rounded-lg text-purple-600 hover:bg-purple-100 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleSendEditedSuggestion(msg)}
+                              disabled={sending || !editedContent.trim()}
+                              className="px-3 py-1 text-xs rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                              {sending ? <div className="spinner w-3 h-3 border-2" /> : <><Send size={10} /> Send</>}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-4 py-3 rounded-2xl rounded-tr-none border-2 border-dashed border-purple-300 bg-purple-50 hover:bg-purple-100 hover:border-purple-400 transition-all group">
+                          <p className="text-sm whitespace-pre-wrap text-purple-900">{formatMessageContent(msg.content)}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <p className="text-xs text-purple-400">{msg.time}</p>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleEditSuggestion(msg)}
+                                className="text-xs text-purple-600 font-medium flex items-center gap-1 hover:text-purple-800"
+                              >
+                                <Pencil size={10} /> Edit
+                              </button>
+                              <button
+                                onClick={() => handleUseSuggestion(msg)}
+                                className="text-xs text-purple-600 font-medium flex items-center gap-1 hover:text-purple-800"
+                              >
+                                <Send size={10} /> Send
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              }
+
+              // Regular customer and assistant messages
+              return (
                 <div
-                  className={`max-w-[70%] px-4 py-2 rounded-2xl ${
-                    msg.sender === 'customer'
-                      ? 'bg-muted rounded-tl-none'
-                      : 'gradient-bg text-white rounded-tr-none'
-                  }`}
+                  key={msg.id}
+                  className={`flex ${msg.sender === 'customer' ? '' : 'justify-end'}`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  <p className={`text-xs mt-1 ${msg.sender === 'customer' ? 'text-muted-foreground' : 'text-white/70'}`}>
-                    {msg.time}
-                  </p>
+                  <div
+                    className={`max-w-[70%] px-4 py-2 rounded-2xl ${
+                      msg.sender === 'customer'
+                        ? 'bg-muted rounded-tl-none'
+                        : 'gradient-bg text-white rounded-tr-none'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">{formatMessageContent(msg.content)}</p>
+                    <p className={`text-xs mt-1 ${msg.sender === 'customer' ? 'text-muted-foreground' : 'text-white/70'}`}>
+                      {msg.time}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
             <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}
           <div className="p-4 border-t border-border">
-            {selectedConversation.mode === 'autopilot' ? (
+            {isAutopilot ? (
                 <div className="bg-purple-50 text-purple-700 p-3 rounded-lg text-sm flex items-center justify-center gap-2">
                     <Zap size={16} />
-                    Conversation is in Autopilot mode. AI is handling responses.
+                    Autopilot is active. AI is handling responses automatically.
+                    <button
+                      onClick={handleSwitchMode}
+                      disabled={switchingMode}
+                      className="ml-2 underline hover:text-purple-900 font-medium"
+                    >
+                      Switch to Co-pilot
+                    </button>
                 </div>
             ) : (
                 <div className="flex gap-3">
@@ -300,7 +604,7 @@ export default function ConversationsView() {
                     onPressEnter={handleSendMessage}
                     disabled={sending}
                 />
-                <button 
+                <button
                     className="btn-primary px-6 flex items-center justify-center"
                     onClick={handleSendMessage}
                     disabled={sending}

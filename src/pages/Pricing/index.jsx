@@ -13,7 +13,7 @@ const plans = [
     color: 'border-gray-200',
     buttonClass: 'btn-secondary',
     features: [
-      { text: '100 conversations/month', included: true },
+      { text: '500 messages/month', included: true },
       { text: '1 AI assistant', included: true },
       { text: 'Basic analytics', included: true },
       { text: 'Email support', included: true },
@@ -27,14 +27,14 @@ const plans = [
   {
     name: 'Standard',
     description: 'Best for growing businesses',
-    price: 2999,
+    price: 2500,
     period: 'month',
     icon: Building2,
     color: 'border-primary',
     popular: true,
     buttonClass: 'btn-primary',
     features: [
-      { text: 'Unlimited conversations', included: true },
+      { text: 'Unlimited messages', included: true },
       { text: '3 AI assistants', included: true },
       { text: 'Advanced analytics', included: true },
       { text: 'Priority email support', included: true },

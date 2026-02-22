@@ -1,7 +1,7 @@
 export const API_CONFIG = {
   BASE_URL: 'https://api.grayscale-technologies.com/api',
   CHAT_URL: 'https://mira-chat.grayscale-technologies.com',
-  CLIENT_KEY: '15f1d1cb-b6a0-4133-9f5a-643a3affe291',
+  CLIENT_KEY: import.meta.env.VITE_CLIENT_KEY,
   COMPANY_ID: '1',
 }
 
@@ -16,9 +16,17 @@ export const ENDPOINTS = {
     UPDATE: (id) => `/v1/customers/${id}/`,
   },
   COMPANIES: {
-    BASE: '/v1/companies',
+    BASE: '/v1/companies/',
     GET: (id) => `/v1/companies/${id}/`,
     UPDATE: (id) => `/v1/companies/${id}/`,
+  },
+  ORDERS: {
+    LIST: '/v1/orders/',
+    GET: (id) => `/v1/orders/${id}/`,
+  },
+  PRODUCTS: {
+    LIST: '/v1/products/',
+    MY_PRODUCTS: '/v1/products/my_products/',
   },
   DASHBOARD: {
     ANALYTICS: '/dashboard/analytics-summary/',
