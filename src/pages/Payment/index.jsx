@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import {
-  CreditCard,
   Smartphone,
   MapPin,
   Check,
@@ -12,9 +11,9 @@ import {
 import { Radio, Input, message } from 'antd'
 
 const paymentMethods = [
-  { id: 'bkash', name: 'bKash', icon: '🔴', type: 'mfs' },
-  { id: 'nagad', name: 'Nagad', icon: '🟠', type: 'mfs' },
-  { id: 'card', name: 'Credit/Debit Card', icon: CreditCard, type: 'card' },
+  { id: 'bkash', name: 'bKash', logo: '/BKash.svg', type: 'mfs' },
+  { id: 'nagad', name: 'Nagad', logo: '/Nagad.svg', type: 'mfs' },
+  { id: 'card', name: 'Credit/Debit Card', logo: '/Visa.svg', type: 'card' },
 ]
 
 const deliveryOptions = [
@@ -142,11 +141,7 @@ export default function Payment() {
                           >
                             <Radio value={method.id}>
                               <div className="flex items-center gap-3 ml-2">
-                                {typeof method.icon === 'string' ? (
-                                  <span className="text-2xl">{method.icon}</span>
-                                ) : (
-                                  <method.icon size={24} className="text-primary" />
-                                )}
+                                <img src={method.logo} alt={method.name} className="h-10 w-auto" />
                                 <span className="font-medium">{method.name}</span>
                               </div>
                             </Radio>

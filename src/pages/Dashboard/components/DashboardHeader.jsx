@@ -63,9 +63,14 @@ export default function DashboardHeader({ currentView, onMenuClick, company }) {
             <User size={18} className="text-primary" />
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-medium leading-tight">
-              {company?.name || 'Company'}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium leading-tight">
+                {company?.name || 'Company'}
+              </p>
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded-full leading-none">
+                FREE
+              </span>
+            </div>
             <p className="text-xs text-muted-foreground">Admin</p>
           </div>
         </div>

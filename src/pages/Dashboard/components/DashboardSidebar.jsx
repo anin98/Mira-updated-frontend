@@ -8,6 +8,8 @@ import {
   X,
   LogOut,
   Home,
+  Zap,
+  ArrowUpRight,
 } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 
@@ -49,6 +51,24 @@ export default function DashboardSidebar({ currentView, onViewChange, isOpen, on
           </button>
         ))}
       </nav>
+
+      {/* Plan Badge & Upgrade */}
+      <div className="px-3 pb-2">
+        <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap size={16} className="text-blue-600" />
+            <span className="text-sm font-semibold text-blue-900">Free Tier</span>
+          </div>
+          <p className="text-xs text-blue-700/70 mb-3">500 conversations/mo, 1 AI assistant</p>
+          <Link
+            to="/pricing"
+            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            Upgrade Plan
+            <ArrowUpRight size={14} />
+          </Link>
+        </div>
+      </div>
 
       {/* Footer */}
       <div className="p-3 border-t border-border space-y-1">

@@ -195,59 +195,13 @@ export default function SalesView() {
 
       {/* Charts Row */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Orders Chart */}
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Orders Trend</h3>
-          <div className="h-[250px] w-full">
-            {analytics.chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analytics.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="orders" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                </ResponsiveContainer>
-            ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground">
-                    No chart data available
-                </div>
-            )}
-          </div>
-        </div>
+     
 
-        {/* Revenue Chart */}
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Revenue Trend</h3>
-          <div className="h-[250px] w-full">
-            {analytics.chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={analytics.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Line
-                        type="monotone"
-                        dataKey="revenue"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        dot={{ fill: '#10b981' }}
-                    />
-                    </LineChart>
-                </ResponsiveContainer>
-            ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground">
-                    No chart data available
-                </div>
-            )}
-          </div>
-        </div>
+      
       </div>
 
       {/* Bottom Row */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="">
         {/* Recent Orders */}
         <div className="lg:col-span-2 card p-0 overflow-hidden">
           <div className="p-4 border-b border-border">
@@ -263,30 +217,7 @@ export default function SalesView() {
           />
         </div>
 
-        {/* Popular Products */}
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Popular Products</h3>
-          <div className="space-y-4">
-            {analytics.popularProducts.length > 0 ? (
-                analytics.popularProducts.map((product) => (
-                <div key={product.name} className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xl">
-                    {product.image ? <img src={product.image} className="w-full h-full object-cover rounded-lg"/> : '📦'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">{product.sales} sales</p>
-                    </div>
-                    <p className="font-semibold text-green-600">৳{product.revenue?.toLocaleString()}</p>
-                </div>
-                ))
-            ) : (
-                <div className="text-sm text-muted-foreground text-center py-4">
-                    No product data available yet
-                </div>
-            )}
-          </div>
-        </div>
+    
       </div>
     </div>
   )

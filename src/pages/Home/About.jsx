@@ -55,7 +55,7 @@ export default function About() {
               <div className="mb-6">
                 {/* Placeholder for NVIDIA Inception Logo */}
                 <div className=" rounded-xl flex items-center justify-center ">
-                  <img src="/src/assets/nvidia-inception.png" alt="MIRA AI" className="w-50 h-50" />
+                  <img src="/nvidia-inception.png" alt="MIRA AI" className="w-50 h-50" />
                 </div>
               </div>
               <h3 className="text-xl font-bold mb-3">Powered by NVIDIA Inception</h3>

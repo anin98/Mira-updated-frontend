@@ -73,12 +73,22 @@ export function AuthProvider({ children }) {
     localStorage.setItem('userId', userData.id)
     if (userData.customerId) localStorage.setItem('customerId', userData.customerId)
     if (userData.displayName) localStorage.setItem('displayName', userData.displayName)
-    if (userData.first_name) localStorage.setItem('firstName', userData.first_name)
-    if (userData.last_name) localStorage.setItem('lastName', userData.last_name)
+    const firstName = userData.first_name || userData.firstName
+    const lastName = userData.last_name || userData.lastName
+    if (firstName) localStorage.setItem('firstName', firstName)
+    if (lastName) localStorage.setItem('lastName', lastName)
     if (userData.email) localStorage.setItem('email', userData.email)
     if (userData.phone) localStorage.setItem('verifiedPhone', userData.phone)
 
-    setUser(userData)
+    setUser({
+      id: userData.id,
+      customerId: userData.customerId,
+      displayName: userData.displayName,
+      firstName: userData.first_name || userData.firstName,
+      lastName: userData.last_name || userData.lastName,
+      email: userData.email,
+      phone: userData.phone,
+    })
     setIsAuthenticated(true)
     window.dispatchEvent(new Event('storage'))
     window.dispatchEvent(new CustomEvent('loginStatusChanged'))
@@ -123,11 +133,18 @@ export function AuthProvider({ children }) {
 
   const updateUser = (userData) => {
     if (userData.displayName) localStorage.setItem('displayName', userData.displayName)
-    if (userData.first_name) localStorage.setItem('firstName', userData.first_name)
-    if (userData.last_name) localStorage.setItem('lastName', userData.last_name)
+    const updFirstName = userData.first_name || userData.firstName
+    const updLastName = userData.last_name || userData.lastName
+    if (updFirstName) localStorage.setItem('firstName', updFirstName)
+    if (updLastName) localStorage.setItem('lastName', updLastName)
     if (userData.email) localStorage.setItem('email', userData.email)
 
-    setUser(prev => ({ ...prev, ...userData }))
+    setUser(prev => ({
+      ...prev,
+      ...userData,
+      firstName: userData.first_name || userData.firstName || prev?.firstName,
+      lastName: userData.last_name || userData.lastName || prev?.lastName,
+    }))
     window.dispatchEvent(new Event('storage'))
   }
 

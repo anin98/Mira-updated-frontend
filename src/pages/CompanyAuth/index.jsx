@@ -35,11 +35,6 @@ const companySizes = [
 
 const deliveryZones = [
   'Inside Dhaka',
-  'Outside Dhaka',
-  'Chattogram',
-  'Sylhet',
-  'Khulna',
-  'Rajshahi',
   'Nationwide',
 ]
 
@@ -52,6 +47,7 @@ const steps = [
 export default function CompanyAuth() {
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [checkingCompany, setCheckingCompany] = useState(true)
   const [errors, setErrors] = useState({})
   const [formData, setFormData] = useState({
     companyName: '',
@@ -64,38 +60,31 @@ export default function CompanyAuth() {
     cashOnDelivery: true,
     homeDelivery: true,
     deliveryZones: ['Inside Dhaka'],
-    deliveryCharges: '',
+    deliveryChargeInsideDhaka: '',
+    deliveryChargeOutsideDhaka: '',
   })
 
   const navigate = useNavigate()
   const { loginCompany } = useAuth()
 
-  // FIX: Check for existing company on mount
+  // Check for existing company on mount - show loading until done
   useEffect(() => {
     const checkExistingCompany = async () => {
       try {
-        // Use the same endpoint (GET instead of POST)
         const response = await apiClient.get(ENDPOINTS.COMPANIES.BASE)
-        
-        // If the API returns a list and it's not empty, the user already has a company
+
         if (Array.isArray(response.data) && response.data.length > 0) {
           const existingCompany = response.data[0]
-          
-          message.loading({ content: 'Existing company found! Redirecting...', key: 'company_check' })
-          
-          // Log the user in as this company using the current token
           const token = localStorage.getItem('access_token')
           loginCompany(existingCompany, token)
-          
-          setTimeout(() => {
-            message.success({ content: 'Redirected to Dashboard', key: 'company_check' })
-            navigate('/dashboard')
-          }, 1000)
+          message.success('Welcome back! Redirecting to dashboard...')
+          navigate('/dashboard')
+          return
         }
       } catch (err) {
-        // If 404 or empty, user truly needs to register. Do nothing.
-        console.log('No existing company found, staying on registration.')
+        console.log('No existing company found, showing registration.')
       }
+      setCheckingCompany(false)
     }
 
     checkExistingCompany()
@@ -160,25 +149,43 @@ export default function CompanyAuth() {
     setCurrentStep((prev) => prev - 1)
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
     if (!validateStep(currentStep)) return
 
     setLoading(true)
     try {
-      const response = await apiClient.post(ENDPOINTS.COMPANIES.BASE, {
+      const deliveryScope = formData.deliveryZones.length === 1 && formData.deliveryZones[0] === 'Inside Dhaka'
+        ? 'DHAKA_ONLY'
+        : 'NATIONWIDE'
+
+      const username = localStorage.getItem('verifiedPhone') || localStorage.getItem('email')
+      const userEmail = localStorage.getItem('email')
+      const firstName = localStorage.getItem('firstName')
+      const lastName = localStorage.getItem('lastName')
+
+      const payload = {
+        user: {
+          username,
+          email: userEmail,
+          first_name: firstName,
+          last_name: lastName,
+        },
         name: formData.companyName,
         email: formData.email,
         whatsapp_number: formData.whatsappNumber,
-        website: formData.website,
-        industry: formData.industry,
-        company_size: formData.companySize,
-        description: formData.description,
-        cash_on_delivery: formData.cashOnDelivery,
-        home_delivery: formData.homeDelivery,
-        delivery_zones: formData.deliveryZones,
-        delivery_charges: formData.deliveryCharges ? parseFloat(formData.deliveryCharges) : 0,
-      })
+        website: formData.website
+          ? (formData.website.startsWith('http') ? formData.website : `https://${formData.website}`)
+          : undefined,
+        allow_cash_on_delivery: formData.cashOnDelivery,
+        supports_home_delivery: formData.homeDelivery,
+        delivery_scope: deliveryScope,
+        delivery_charge_inside_dhaka: formData.deliveryChargeInsideDhaka ? parseInt(formData.deliveryChargeInsideDhaka) : 0,
+        delivery_charge_outside_dhaka: formData.deliveryChargeOutsideDhaka ? parseInt(formData.deliveryChargeOutsideDhaka) : 0,
+      }
+
+      console.log('Submitting company payload:', payload)
+
+      const response = await apiClient.post(ENDPOINTS.COMPANIES.BASE, payload)
 
       const companyData = response.data
       const token = response.data.token || response.data.access_token
@@ -187,7 +194,17 @@ export default function CompanyAuth() {
       message.success('Company registered successfully!')
       navigate('/dashboard')
     } catch (err) {
-      message.error(err.response?.data?.message || 'Failed to register company')
+      console.error('Company registration error:', err.response?.data)
+      // DRF returns errors as nested objects, not a single message string
+      const errData = err.response?.data
+      if (errData && typeof errData === 'object') {
+        const firstError = Object.entries(errData)
+          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs[0] : JSON.stringify(msgs)}`)
+          .join('\n')
+        message.error(firstError || 'Failed to register company')
+      } else {
+        message.error('Failed to register company')
+      }
     } finally {
       setLoading(false)
     }
@@ -370,14 +387,32 @@ export default function CompanyAuth() {
 
             <div>
               <label className="block text-sm font-medium mb-2">
-                Delivery Charges <span className="text-muted-foreground text-xs">(BDT)</span>
+                Delivery Charge – Inside Dhaka <span className="text-muted-foreground text-xs">(BDT)</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">৳</span>
+                
                 <input
                   type="number"
-                  name="deliveryCharges"
-                  value={formData.deliveryCharges}
+                  name="deliveryChargeInsideDhaka"
+                  value={formData.deliveryChargeInsideDhaka}
+                  onChange={handleChange}
+                  className="input pl-8"
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Delivery Charge – Outside Dhaka <span className="text-muted-foreground text-xs">(BDT)</span>
+              </label>
+              <div className="relative">
+              
+                <input
+                  type="number"
+                  name="deliveryChargeOutsideDhaka"
+                  value={formData.deliveryChargeOutsideDhaka}
                   onChange={handleChange}
                   className="input pl-8"
                   placeholder="0"
@@ -391,6 +426,15 @@ export default function CompanyAuth() {
       default:
         return null
     }
+  }
+
+  if (checkingCompany) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <div className="spinner w-10 h-10 border-primary" />
+        <p className="text-muted-foreground">Checking your account...</p>
+      </div>
+    )
   }
 
   return (
@@ -449,7 +493,7 @@ export default function CompanyAuth() {
 
         {/* Form Card */}
         <div className="card">
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={(e) => e.preventDefault()}>
             {renderStepContent()}
 
             {/* Navigation Buttons */}
@@ -475,7 +519,8 @@ export default function CompanyAuth() {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmit}
                   disabled={loading}
                   className="btn-primary flex-1 py-3 gap-2"
                 >
