@@ -10,16 +10,17 @@ export default function MessageComponent({ message: msg }) {
   const [qrImageUrl, setQrImageUrl] = useState('')
 
   const isImageUrl = (url) => /\.(jpeg|jpg|png|gif|webp)(\?.*)?$/i.test(url)
+  const isQrCodeUrl = (url) => /\/qrcode\//i.test(url)
 
   const openQrModal = (url) => {
     setQrImageUrl(url)
     setQrModalOpen(true)
   }
 
-  // Convert bare image URLs in text into markdown links so ReactMarkdown can handle them
+  // Convert bare image URLs or QR code API URLs in text into markdown links
   const processContent = (content) => {
     return content.replace(
-      /(?<!\]\()(https?:\/\/[^\s)]+\.(?:jpeg|jpg|png|gif|webp))/gi,
+      /(?<!\]\()(https?:\/\/[^\s)]+(?:\.(?:jpeg|jpg|png|gif|webp)|\/qrcode\/[^\s)]*))(?=[)\s]|$)/gi,
       '[View QR Code]($1)'
     )
   }
@@ -102,7 +103,7 @@ export default function MessageComponent({ message: msg }) {
                         </pre>
                       ),
                     a: ({ href, children }) => {
-                      if (href && isImageUrl(href)) {
+                      if (href && (isImageUrl(href) || isQrCodeUrl(href))) {
                         return (
                           <button
                             onClick={() => openQrModal(href)}
