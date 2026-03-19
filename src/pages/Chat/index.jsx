@@ -292,7 +292,8 @@ export default function Chat() {
               const jsonStr = line.slice(6)
               if (!jsonStr.trim()) continue
               const data = JSON.parse(jsonStr)
-              const textChunk = data.data || data.content 
+              const raw = data.data || data.content
+              const textChunk = typeof raw === 'string' ? raw : (raw?.text || raw?.message || '')
               
               if (textChunk) {
                 // ✨ Typewriting Effect
