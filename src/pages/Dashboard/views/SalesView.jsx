@@ -208,7 +208,7 @@ export default function SalesView() {
             <h3 className="text-lg font-semibold">Recent Orders</h3>
           </div>
           <Table
-            dataSource={orders.slice(0, 5)} // Show top 5
+            dataSource={orders} // Show top 5
             columns={orderColumns}
             rowKey="id"
             pagination={false}
