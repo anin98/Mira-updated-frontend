@@ -65,7 +65,9 @@ chatApiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     } else {
-      config.headers.Authorization = `Client-Key ${API_CONFIG.CLIENT_KEY}`
+      // Anonymous FastAPI calls must target /widget/chat, which uses a
+      // per-company widget key instead of a global Authorization header.
+      config.headers['X-Widget-Key'] = API_CONFIG.WIDGET_KEY
     }
     return config
   },

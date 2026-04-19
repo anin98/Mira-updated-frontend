@@ -1,7 +1,10 @@
 export const API_CONFIG = {
   BASE_URL: 'https://api.grayscale-technologies.com/api',
   CHAT_URL: 'https://mira-chat.grayscale-technologies.com',
-  CLIENT_KEY: import.meta.env.VITE_CLIENT_KEY,
+  // Per-company widget key for anonymous chat via /widget/chat. Fetched from
+  // Django (SalesAIAssistantViewSet.get_api_key) per company — replaces the
+  // old shared global CLIENT_KEY that had no tenant binding.
+  WIDGET_KEY: import.meta.env.VITE_WIDGET_KEY,
   COMPANY_ID: '1',
 }
 

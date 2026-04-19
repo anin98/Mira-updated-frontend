@@ -49,9 +49,10 @@ export default function Chat() {
     const headers = { 'Content-Type': 'application/json' }
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
-    } else {
-      headers['Authorization'] = `Client-Key ${API_CONFIG.CLIENT_KEY}`
     }
+    // Anonymous Django requests (history/log) fall through without auth; the
+    // anonymous path to FastAPI /widget/chat is handled directly in sendMessage
+    // where we need the X-Widget-Key header + a different body shape.
     return headers
   }
 
@@ -260,14 +261,33 @@ export default function Chat() {
     setLoading(true)
 
     try {
-      const response = await fetch(`${API_CONFIG.CHAT_URL}/chat`, {
+      // Authenticated users hit /chat with their JWT; anonymous users hit
+      // /widget/chat with a per-company widget key. The widget endpoint auto-
+      // generates a session_id on first turn and returns it via a {type:"session"}
+      // SSE event — we capture it and send it back on the next turn.
+      const token = localStorage.getItem('access_token')
+      const isAnon = !token
+      const url = isAnon
+        ? `${API_CONFIG.CHAT_URL}/widget/chat`
+        : `${API_CONFIG.CHAT_URL}/chat`
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      } else {
+        headers['X-Widget-Key'] = API_CONFIG.WIDGET_KEY
+      }
+      const body = isAnon
+        ? { message: content, session_id: activeSessionId }
+        : {
+            messages: [{ role: 'user', content }],
+            session_id: activeSessionId,
+            company_id: API_CONFIG.COMPANY_ID || 1,
+          }
+
+      const response = await fetch(url, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-          messages: [{ role: "user", content: content }],
-          session_id: activeSessionId,
-          company_id: API_CONFIG.COMPANY_ID || 1,
-        }),
+        headers,
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) throw new Error('Failed to send message')
@@ -292,15 +312,25 @@ export default function Chat() {
               const jsonStr = line.slice(6)
               if (!jsonStr.trim()) continue
               const data = JSON.parse(jsonStr)
+
+              // /widget/chat emits {type:"session", data:"widget_..."} as the
+              // first event when the backend auto-generates a session id.
+              // Persist it so subsequent turns resume the same Redis state.
+              if (data.type === 'session' && typeof data.data === 'string') {
+                activeSessionId = data.data
+                setSessionId(activeSessionId)
+                continue
+              }
+
               const raw = data.data || data.content
               const textChunk = typeof raw === 'string' ? raw : (raw?.text || raw?.message || '')
-              
+
               if (textChunk) {
                 // ✨ Typewriting Effect
                 for (let i = 0; i < textChunk.length; i++) {
                   assistantContent += textChunk[i]
                   setMessages((prev) => prev.map((m) =>
-                    m.id === loadingMessage.id 
+                    m.id === loadingMessage.id
                       ? { ...m, content: assistantContent, status: 'streaming' }
                       : m
                   ))
