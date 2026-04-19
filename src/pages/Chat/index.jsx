@@ -290,12 +290,22 @@ export default function Chat() {
         body: JSON.stringify(body),
       })
 
-      if (!response.ok) throw new Error('Failed to send message')
+      if (!response.ok) {
+        // 429 = per-company rate limit on /widget/chat. Distinguish it so
+        // users see a helpful message rather than a generic failure.
+        if (response.status === 429) {
+          const err = new Error('rate_limited')
+          err.userMessage = "This chat is getting a lot of traffic right now. Please try again in a minute."
+          throw err
+        }
+        throw new Error('Failed to send message')
+      }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let assistantContent = ''
       let buffer = ''
+      let streamErrorRequestId = null
 
       while (true) {
         const { done, value } = await reader.read()
@@ -322,6 +332,13 @@ export default function Chat() {
                 continue
               }
 
+              // Mid-stream error event carries a request_id the user can quote
+              // to support. Remember it; we'll show it in the error bubble.
+              if (data.type === 'error') {
+                streamErrorRequestId = data.request_id || null
+                continue
+              }
+
               const raw = data.data || data.content
               const textChunk = typeof raw === 'string' ? raw : (raw?.text || raw?.message || '')
 
@@ -342,12 +359,27 @@ export default function Chat() {
         }
       }
 
+      // If the stream yielded an error frame, surface the request_id rather
+      // than claiming success.
+      if (streamErrorRequestId) {
+        setMessages(prev => prev.map(m =>
+          m.id === loadingMessage.id
+            ? {
+                ...m,
+                status: 'error',
+                content: `Something went wrong. Reference: ${streamErrorRequestId}`,
+              }
+            : m
+        ))
+        return
+      }
+
       const finalAssistantMessage = {
         ...loadingMessage,
         content: assistantContent || "I couldn't generate a response.",
         status: 'success',
       }
-      
+
       const finalMessages = [...updatedMessages, finalAssistantMessage]
       setMessages(finalMessages)
 
@@ -360,7 +392,8 @@ export default function Chat() {
 
     } catch (error) {
       console.error('Error sending message:', error)
-      setMessages(prev => prev.map(m => m.id === loadingMessage.id ? { ...m, status: 'error', content: 'Error.' } : m))
+      const displayText = error.userMessage || 'Error.'
+      setMessages(prev => prev.map(m => m.id === loadingMessage.id ? { ...m, status: 'error', content: displayText } : m))
     } finally {
       setLoading(false)
     }
