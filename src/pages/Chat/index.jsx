@@ -304,6 +304,7 @@ export default function Chat() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let assistantContent = ''
+      let streamProducts = []
       let buffer = ''
       let streamErrorRequestId = null
 
@@ -323,19 +324,22 @@ export default function Chat() {
               if (!jsonStr.trim()) continue
               const data = JSON.parse(jsonStr)
 
-              // /widget/chat emits {type:"session", data:"widget_..."} as the
-              // first event when the backend auto-generates a session id.
-              // Persist it so subsequent turns resume the same Redis state.
               if (data.type === 'session' && typeof data.data === 'string') {
                 activeSessionId = data.data
                 setSessionId(activeSessionId)
                 continue
               }
 
-              // Mid-stream error event carries a request_id the user can quote
-              // to support. Remember it; we'll show it in the error bubble.
               if (data.type === 'error') {
                 streamErrorRequestId = data.request_id || null
+                continue
+              }
+
+              if (data.type === 'products' && Array.isArray(data.data)) {
+                streamProducts = data.data
+                setMessages((prev) => prev.map((m) =>
+                  m.id === loadingMessage.id ? { ...m, products: streamProducts } : m
+                ))
                 continue
               }
 
@@ -343,7 +347,6 @@ export default function Chat() {
               const textChunk = typeof raw === 'string' ? raw : (raw?.text || raw?.message || '')
 
               if (textChunk) {
-                // ✨ Typewriting Effect
                 for (let i = 0; i < textChunk.length; i++) {
                   assistantContent += textChunk[i]
                   setMessages((prev) => prev.map((m) =>
@@ -378,6 +381,7 @@ export default function Chat() {
         ...loadingMessage,
         content: assistantContent || "I couldn't generate a response.",
         status: 'success',
+        products: streamProducts.length > 0 ? streamProducts : undefined,
       }
 
       const finalMessages = [...updatedMessages, finalAssistantMessage]

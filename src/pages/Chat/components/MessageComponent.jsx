@@ -8,6 +8,7 @@ export default function MessageComponent({ message: msg }) {
   const [reaction, setReaction] = useState(null)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [qrImageUrl, setQrImageUrl] = useState('')
+  const [previewImage, setPreviewImage] = useState(null)
 
   const isImageUrl = (url) => /\.(jpeg|jpg|png|gif|webp)(\?.*)?$/i.test(url)
   const isQrCodeUrl = (url) => /\/qrcode\//i.test(url)
@@ -128,6 +129,43 @@ export default function MessageComponent({ message: msg }) {
           )}
         </div>
 
+        {/* Product Cards */}
+        {msg.products && msg.products.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-3">
+            {msg.products.map((product) => {
+              const p = product.data
+              const priceMatch = p.subtitle?.match(/Price:\s*([\d,]+ BDT)/)
+              const price = priceMatch ? priceMatch[1] : null
+              const displayName = p.name?.includes('–') ? p.name.split('–')[0].trim() : p.name
+              return (
+                <div
+                  key={p.variant_id}
+                  className="w-36 rounded-xl border border-border bg-white shadow-sm overflow-hidden flex flex-col"
+                >
+                  {p.image_url ? (
+                    <img
+                      src={p.image_url}
+                      alt={displayName}
+                      className="w-full h-28 object-cover cursor-zoom-in"
+                      onClick={() => setPreviewImage({ url: p.image_url, name: displayName })}
+                    />
+                  ) : (
+                    <div className="w-full h-28 bg-muted flex items-center justify-center">
+                      <span className="text-2xl">🍵</span>
+                    </div>
+                  )}
+                  <div className="p-2 flex-1 flex flex-col justify-between">
+                    <p className="text-xs font-semibold leading-tight line-clamp-2">{displayName}</p>
+                    {price && (
+                      <p className="text-xs text-primary font-bold mt-1">{price}</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Message Meta & Actions */}
         <div className={`flex items-center gap-2 mt-1 ${isUser ? 'justify-end' : ''}`}>
           <span className="text-xs text-muted-foreground">{formatTime(msg.timestamp)}</span>
@@ -169,6 +207,34 @@ export default function MessageComponent({ message: msg }) {
           )}
         </div>
       </div>
+
+      {/* Product Image Full Preview */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-lg w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors"
+            >
+              <X size={16} className="text-gray-600" />
+            </button>
+            <img
+              src={previewImage.url}
+              alt={previewImage.name}
+              className="w-full rounded-2xl shadow-xl"
+            />
+            {previewImage.name && (
+              <p className="text-center text-white text-sm font-medium mt-3">{previewImage.name}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* QR Code Modal */}
       {qrModalOpen && (

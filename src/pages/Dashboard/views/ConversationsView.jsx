@@ -46,11 +46,11 @@ export default function ConversationsView() {
         id: item.session_id || item.id,
         customer: item.customer_name || 'Unknown Customer',
         phone: item.customer_phone || '',
-        lastMessage: item.last_message || 'No messages',
-        timestamp: item.updated_at || item.created_at,
+        lastMessage: item.last_message_content || item.last_message || 'No messages',
+        timestamp: item.last_message_timestamp || item.updated_at || item.created_at,
         unread: 0,
         status: item.status || 'active',
-        mode: item.mode || 'copilot',
+        mode: (item.mode || 'COPILOT').toLowerCase(),
         messageCount: item.message_count || 0,
         channel: item.channel || 'web',
         company_id: item.company_id || null,
@@ -86,8 +86,13 @@ export default function ConversationsView() {
 
       const data = await response.json()
 
-      // Map API messages - differentiate suggestions from regular assistant messages
-      const mappedMessages = Array.isArray(data) ? data.map(msg => ({
+      // Support both { session, messages } shape and legacy plain array
+      const rawMessages = Array.isArray(data) ? data : (data.messages ?? [])
+      const sessionMode = !Array.isArray(data) && data.session?.mode
+        ? data.session.mode.toLowerCase()
+        : null
+
+      const mappedMessages = rawMessages.map(msg => ({
         id: msg.id,
         content: msg.content,
         sender: msg.role === 'user' ? 'customer' : msg.role === 'suggestion' ? 'suggestion' : 'assistant',
@@ -95,12 +100,12 @@ export default function ConversationsView() {
         time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         timestamp: msg.created_at,
         based_on_suggestion: msg.based_on_suggestion,
-      })).reverse() : []
+      })).reverse()
 
-      return mappedMessages
+      return { messages: mappedMessages, mode: sessionMode }
     } catch (error) {
       console.error(error)
-      return null // Return null to indicate error (vs empty array)
+      return null
     }
   }, [])
 
@@ -112,9 +117,10 @@ export default function ConversationsView() {
     setEditedContent('')
     setSelectedConversation({ ...conv, messages: [] })
     setMessagesLoading(true)
-    const messages = await fetchMessages(conv.id)
-    if (messages !== null) {
-      setSelectedConversation({ ...conv, messages })
+    const result = await fetchMessages(conv.id)
+    if (result !== null) {
+      const { messages, mode } = result
+      setSelectedConversation({ ...conv, messages, ...(mode ? { mode } : {}) })
     }
     setMessagesLoading(false)
   }
@@ -130,13 +136,15 @@ export default function ConversationsView() {
     }
 
     const pollMessages = async () => {
-      const messages = await fetchMessages(selectedConversation.id)
-      if (messages !== null) {
+      const result = await fetchMessages(selectedConversation.id)
+      if (result !== null) {
+        const { messages, mode } = result
         setSelectedConversation(prev => {
           if (!prev || prev.id !== selectedConversation.id) return prev
-          // Only update if message count changed to avoid unnecessary re-renders
-          if (prev.messages.length !== messages.length) {
-            return { ...prev, messages }
+          const modeChanged = mode && prev.mode !== mode
+          const messagesChanged = prev.messages.length !== messages.length
+          if (messagesChanged || modeChanged) {
+            return { ...prev, messages, ...(mode ? { mode } : {}) }
           }
           return prev
         })
@@ -205,9 +213,10 @@ export default function ConversationsView() {
 
       setNewMessage('')
       // Refresh messages to show the sent message
-      const updatedMessages = await fetchMessages(selectedConversation.id)
-      if (updatedMessages !== null) {
-        setSelectedConversation(prev => ({ ...prev, messages: updatedMessages }))
+      const result = await fetchMessages(selectedConversation.id)
+      if (result !== null) {
+        const { messages: updatedMessages, mode } = result
+        setSelectedConversation(prev => ({ ...prev, messages: updatedMessages, ...(mode ? { mode } : {}) }))
       }
 
       fetchConversations()
@@ -244,9 +253,10 @@ export default function ConversationsView() {
       setEditedContent('')
 
       // Refresh messages
-      const updatedMessages = await fetchMessages(selectedConversation.id)
-      if (updatedMessages !== null) {
-        setSelectedConversation(prev => ({ ...prev, messages: updatedMessages }))
+      const result = await fetchMessages(selectedConversation.id)
+      if (result !== null) {
+        const { messages: updatedMessages, mode } = result
+        setSelectedConversation(prev => ({ ...prev, messages: updatedMessages, ...(mode ? { mode } : {}) }))
       }
 
       fetchConversations()
