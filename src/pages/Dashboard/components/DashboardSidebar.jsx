@@ -5,6 +5,7 @@ import {
   Building2,
   MessageSquare,
   Bot,
+  Plug,
   X,
   LogOut,
   Home,
@@ -19,6 +20,7 @@ const menuItems = [
   { id: 'company', label: 'Company Settings', icon: Building2 },
   { id: 'conversations', label: 'Conversations', icon: MessageSquare },
   { id: 'ai-persona', label: 'AI Persona', icon: Bot },
+  { id: 'integrations', label: 'Integrations', icon: Plug },
 ]
 
 export default function DashboardSidebar({ currentView, onViewChange, isOpen, onClose }) {

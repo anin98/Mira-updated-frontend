@@ -8,6 +8,7 @@ import ProductsView from './views/ProductsView'
 import CompanyView from './views/CompanyView'
 import ConversationsView from './views/ConversationsView'
 import AIPersonaView from './views/AIPersonaView'
+import IntegrationsView from './views/IntegrationsView'
 import { Menu } from 'lucide-react'
 
 export default function Dashboard() {
@@ -49,6 +50,8 @@ export default function Dashboard() {
         return <ConversationsView />
       case 'ai-persona':
         return <AIPersonaView />
+      case 'integrations':
+        return <IntegrationsView />
       default:
         return <SalesView />
     }
