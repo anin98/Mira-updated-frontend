@@ -6,7 +6,7 @@ import apiClient from './axios'
 // antd `message.error(err.response?.data?.error || err.message)`.
 
 export async function exchangeFacebookToken({ shortLivedToken, companyId }) {
-  const { data } = await apiClient.post('/integrations/facebook/exchange-token/', {
+  const { data } = await apiClient.post('/v1/integrations/facebook/exchange-token/', {
     short_lived_token: shortLivedToken,
     company_id: companyId,
   })
@@ -14,7 +14,7 @@ export async function exchangeFacebookToken({ shortLivedToken, companyId }) {
 }
 
 export async function connectFacebookPage({ companyId, pageId }) {
-  const { data } = await apiClient.post('/integrations/facebook/connect-page/', {
+  const { data } = await apiClient.post('/v1/integrations/facebook/connect-page/', {
     company_id: companyId,
     page_id: pageId,
   })
@@ -22,14 +22,14 @@ export async function connectFacebookPage({ companyId, pageId }) {
 }
 
 export async function getFacebookStatus(companyId) {
-  const { data } = await apiClient.get('/integrations/facebook/status/', {
+  const { data } = await apiClient.get('/v1/integrations/facebook/status/', {
     params: { company_id: companyId },
   })
   return data
 }
 
 export async function disconnectFacebookPage(companyId) {
-  const { data } = await apiClient.post('/integrations/facebook/disconnect-page/', {
+  const { data } = await apiClient.post('/v1/integrations/facebook/disconnect-page/', {
     company_id: companyId,
   })
   return data

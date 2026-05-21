@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 
-// Permissions we need from the user. pages_messaging covers sending messages
-// from a Page; pages_show_list is required to enumerate the user's pages;
-// pages_manage_metadata is required to subscribe the app to the page's
-// webhooks; the rest are needed by the Messenger Platform 24h+ message tags.
+// Scope-based fallback used only when no Login-for-Business config_id is set.
+// With config_id (the production path), Meta sources the scopes from the saved
+// Login Configuration and ignores this list.
 const FB_SCOPES = [
   'pages_messaging',
   'pages_show_list',
@@ -91,6 +90,14 @@ export default function useFacebookSDK() {
         reject(new Error('Facebook SDK is not ready yet'))
         return
       }
+      const configId = import.meta.env.VITE_FACEBOOK_CONFIG_ID
+      // With config_id, Meta sources the scopes from the saved Login Configuration.
+      // response_type:'token' keeps the client-side short-lived token flow our
+      // backend already expects (POST /exchange-token/ with short_lived_token).
+      // Without config_id (plain Facebook Login product), fall back to scope-based.
+      const loginOptions = configId
+        ? { config_id: configId, response_type: 'token', override_default_response_type: true }
+        : { scope: FB_SCOPES, auth_type: 'rerequest' }
       window.FB.login(
         (response) => {
           if (response && response.authResponse) {
@@ -99,7 +106,7 @@ export default function useFacebookSDK() {
             reject(new Error('Facebook login was cancelled or denied'))
           }
         },
-        { scope: FB_SCOPES, auth_type: 'rerequest' },
+        loginOptions,
       )
     })
   }, [])
