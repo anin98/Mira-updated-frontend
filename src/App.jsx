@@ -18,6 +18,7 @@ const Payment = lazy(() => import('./pages/Payment'))
 const Profile = lazy(() => import('./pages/Profile'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
 const TermsOfService = lazy(() => import('./pages/TermsOfService'))
+const DevLogin = lazy(() => import('./pages/DevLogin'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 function PageLoader() {
@@ -122,6 +123,14 @@ export default function App() {
           }
         />
 
+        <Route
+          path="/dev-login"
+          element={
+            <MinimalLayout>
+              <DevLogin />
+            </MinimalLayout>
+          }
+        />
         <Route
           path="/privacy"
           element={
