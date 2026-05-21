@@ -16,6 +16,8 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const CustomerDashboard = lazy(() => import('./pages/CustomerDashboard'))
 const Payment = lazy(() => import('./pages/Payment'))
 const Profile = lazy(() => import('./pages/Profile'))
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
+const TermsOfService = lazy(() => import('./pages/TermsOfService'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 function PageLoader() {
@@ -116,6 +118,23 @@ export default function App() {
           element={
             <MainLayout>
               <CustomerDashboard />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/privacy"
+          element={
+            <MainLayout>
+              <PrivacyPolicy />
+            </MainLayout>
+          }
+        />
+        <Route
+          path="/terms"
+          element={
+            <MainLayout>
+              <TermsOfService />
             </MainLayout>
           }
         />
