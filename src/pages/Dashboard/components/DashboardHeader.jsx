@@ -7,6 +7,7 @@ const viewTitles = {
   company: 'Company Settings',
   conversations: 'Conversations',
   'ai-persona': 'AI Persona Configuration',
+  integrations: 'Integrations',
 }
 
 export default function DashboardHeader({ currentView, onMenuClick, company }) {
