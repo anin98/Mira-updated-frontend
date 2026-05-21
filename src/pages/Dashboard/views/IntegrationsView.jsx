@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plug } from 'lucide-react'
 import { message } from 'antd'
 import FacebookConnect from '../../../components/FacebookConnect/FacebookConnect'
+import InstagramConnect from '../../../components/InstagramConnect/InstagramConnect'
 import { getFacebookStatus } from '../../../api/integrations'
 
 const API_BASE = 'https://api.grayscale-technologies.com/api'
@@ -85,6 +86,20 @@ export default function IntegrationsView() {
       </div>
 
       <FacebookConnect
+        companyId={companyId}
+        status={status}
+        statusLoading={companyLoading || statusLoading}
+        onChanged={refreshStatus}
+      />
+
+      {/*
+       * Instagram is opt-in and decoupled from the Messenger connect above.
+       * The IG card has its own OAuth flow that uses a *different* Login
+       * Configuration (VITE_FACEBOOK_CONFIG_ID_INSTAGRAM) — the one that
+       * includes the IG scopes. Merchants who only want Messenger never see
+       * the mandatory IG asset picker.
+       */}
+      <InstagramConnect
         companyId={companyId}
         status={status}
         statusLoading={companyLoading || statusLoading}
