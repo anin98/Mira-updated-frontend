@@ -3,6 +3,7 @@ import { Plug } from 'lucide-react'
 import { message } from 'antd'
 import FacebookConnect from '../../../components/FacebookConnect/FacebookConnect'
 import InstagramConnect from '../../../components/InstagramConnect/InstagramConnect'
+import WhatsAppConnect from '../../../components/WhatsAppConnect/WhatsAppConnect'
 import { getFacebookStatus } from '../../../api/integrations'
 
 const API_BASE = 'https://api.grayscale-technologies.com/api'
@@ -100,6 +101,21 @@ export default function IntegrationsView() {
        * the mandatory IG asset picker.
        */}
       <InstagramConnect
+        companyId={companyId}
+        status={status}
+        statusLoading={companyLoading || statusLoading}
+        onChanged={refreshStatus}
+      />
+
+      {/*
+       * WhatsApp Business is a separate product line from Messenger/IG even
+       * though it uses the same FB JS SDK shell for OAuth. Its own Embedded
+       * Signup popup picks (or creates) a WABA + phone number, and posts the
+       * resulting waba_id + phone_number_id back via window.postMessage —
+       * the WhatsAppConnect component captures both and exchanges them for a
+       * system-user access token on Django.
+       */}
+      <WhatsAppConnect
         companyId={companyId}
         status={status}
         statusLoading={companyLoading || statusLoading}
