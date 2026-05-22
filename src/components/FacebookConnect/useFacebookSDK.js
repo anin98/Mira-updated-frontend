@@ -84,13 +84,16 @@ export default function useFacebookSDK() {
     }
   }, [appId])
 
-  const login = useCallback(() => {
+  // login(configIdOverride?) — callers pass the specific Login Configuration
+  // they want (Messenger-only vs Messenger+IG). Falls back to the legacy
+  // VITE_FACEBOOK_CONFIG_ID env var if no override is given.
+  const login = useCallback((configIdOverride) => {
     return new Promise((resolve, reject) => {
       if (!window.FB) {
         reject(new Error('Facebook SDK is not ready yet'))
         return
       }
-      const configId = import.meta.env.VITE_FACEBOOK_CONFIG_ID
+      const configId = configIdOverride || import.meta.env.VITE_FACEBOOK_CONFIG_ID
       // With config_id, Meta sources the scopes from the saved Login Configuration.
       // response_type:'token' keeps the client-side short-lived token flow our
       // backend already expects (POST /exchange-token/ with short_lived_token).

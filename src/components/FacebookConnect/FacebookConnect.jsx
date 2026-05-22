@@ -36,7 +36,7 @@ export default function FacebookConnect({ companyId, status, statusLoading, onCh
     }
     setConnecting(true)
     try {
-      const authResponse = await login()
+      const authResponse = await login(import.meta.env.VITE_FACEBOOK_CONFIG_ID_MESSENGER)
       const data = await exchangeFacebookToken({
         shortLivedToken: authResponse.accessToken,
         companyId,
