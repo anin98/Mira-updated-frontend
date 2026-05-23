@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageSquare, Search, User, ChevronRight, X, RefreshCw, Send, Zap, HelpCircle, ToggleLeft, ToggleRight, Pencil, Check, ChevronDown, Facebook, Instagram, Globe } from 'lucide-react'
+import { MessageSquare, Search, User, ChevronRight, X, RefreshCw, Send, Zap, HelpCircle, ToggleLeft, ToggleRight, Pencil, Check, ChevronDown, Facebook, Instagram, Globe, Phone } from 'lucide-react'
 import { Badge, Input, message as antMessage, Tooltip } from 'antd'
 
 // Small read-only pill that tells the agent which channel the customer is
@@ -18,6 +18,11 @@ function ChannelBadge({ channel }) {
       Icon: Instagram,
       label: 'Instagram',
       className: 'bg-pink-50 text-pink-700 border border-pink-100',
+    },
+    WHATSAPP: {
+      Icon: Phone,
+      label: 'WhatsApp',
+      className: 'bg-green-50 text-green-700 border border-green-100',
     },
     WEB: {
       Icon: Globe,
