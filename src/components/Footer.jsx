@@ -12,8 +12,10 @@ const footerLinks = {
     { name: 'Contact', href: '/#contact' },
 
   ],
-
- 
+  legal: [
+    { name: 'Privacy Policy', href: '/privacy' },
+    { name: 'Terms of Service', href: '/terms' },
+  ],
 }
 
 const socialLinks = [
@@ -85,10 +87,22 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Support Links */}
-          
-
-        
+          {/* Legal Links */}
+          <div>
+            <h3 className="font-semibold text-white mb-4">Legal</h3>
+            <ul className="space-y-3">
+              {footerLinks.legal.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    to={link.href}
+                    className="text-gray-400 hover:text-white transition-colors text-sm"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         {/* Bottom Section */}

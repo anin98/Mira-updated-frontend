@@ -1,6 +1,40 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageSquare, Search, User, ChevronRight, X, RefreshCw, Send, Zap, HelpCircle, ToggleLeft, ToggleRight, Pencil, Check, ChevronDown } from 'lucide-react'
+import { MessageSquare, Search, User, ChevronRight, X, RefreshCw, Send, Zap, HelpCircle, ToggleLeft, ToggleRight, Pencil, Check, ChevronDown, Facebook, Instagram, Globe } from 'lucide-react'
 import { Badge, Input, message as antMessage, Tooltip } from 'antd'
+
+// Small read-only pill that tells the agent which channel the customer is
+// messaging from. Defensive against unknown / missing values so an empty
+// `channel` field on a session never crashes the inbox.
+function ChannelBadge({ channel }) {
+  if (!channel) return null
+  const normalized = String(channel).toUpperCase()
+  const map = {
+    MESSENGER: {
+      Icon: Facebook,
+      label: 'Messenger',
+      className: 'bg-blue-50 text-blue-700 border border-blue-100',
+    },
+    INSTAGRAM: {
+      Icon: Instagram,
+      label: 'Instagram',
+      className: 'bg-pink-50 text-pink-700 border border-pink-100',
+    },
+    WEB: {
+      Icon: Globe,
+      label: 'Web',
+      className: 'bg-gray-100 text-gray-700 border border-gray-200',
+    },
+  }
+  const entry = map[normalized] || map.WEB
+  const { Icon, label, className } = entry
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${className}`}
+    >
+      <Icon size={10} /> {label}
+    </span>
+  )
+}
 
 const API_BASE = 'https://api.grayscale-technologies.com/api'
 
@@ -379,7 +413,7 @@ export default function ConversationsView() {
                       <span className="text-xs text-muted-foreground">{formatTime(conversation.timestamp)}</span>
                     </div>
                     <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         conversation.mode === 'autopilot' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
                       }`}>
@@ -388,6 +422,9 @@ export default function ConversationsView() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[conversation.status] || statusColors.active}`}>
                         {conversation.status}
                       </span>
+                      {conversation.channel && (
+                        <ChannelBadge channel={conversation.channel} />
+                      )}
                     </div>
                   </div>
                   <ChevronRight size={18} className="text-muted-foreground" />
@@ -417,7 +454,12 @@ export default function ConversationsView() {
                 <User size={18} className="text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold">{selectedConversation.customer}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">{selectedConversation.customer}</h3>
+                  {selectedConversation.channel && (
+                    <ChannelBadge channel={selectedConversation.channel} />
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground">{selectedConversation.phone}</p>
               </div>
             </div>

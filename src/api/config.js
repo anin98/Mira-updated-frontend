@@ -12,6 +12,7 @@ export const ENDPOINTS = {
   AUTH: {
     REQUEST_OTP: '/auth/request-otp/',
     VERIFY_OTP: '/auth/verify-otp/',
+    MAGIC_LOGIN: '/auth/magic-login/',
   },
   CUSTOMERS: {
     BASE: '/v1/customers',
