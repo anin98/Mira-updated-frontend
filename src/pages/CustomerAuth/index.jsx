@@ -44,22 +44,23 @@ export default function CustomerAuth() {
       const response = await apiClient.get(ENDPOINTS.CUSTOMERS.GET(userId))
       const customer = response.data
 
-      if (customer.first_name && customer.last_name && customer.email) {
+      if (customer.name && customer.email) {
         setProfileComplete(true)
         updateUser({
           customerId: customer.id,
-          firstName: customer.first_name,
-          lastName: customer.last_name,
+          firstName: customer.user?.first_name || '',
+          lastName: customer.user?.last_name || '',
           email: customer.email,
-          name: customer.display_name,
+          name: customer.name,
         })
         navigate('/customer-dashboard')
       } else {
+        const nameParts = (customer.name || '').split(' ')
         setFormData({
-          firstName: customer.first_name || '',
-          lastName: customer.last_name || '',
+          firstName: customer.user?.first_name || nameParts[0] || '',
+          lastName: customer.user?.last_name || nameParts.slice(1).join(' ') || '',
           email: customer.email || '',
-          name: customer.display_name || '',
+          displayName: customer.name || '',
           address: customer.address || '',
         })
       }
