@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageSquare, Search, User, ChevronRight, X, RefreshCw, Send, Zap, HelpCircle, ToggleLeft, ToggleRight, Pencil, Check, ChevronDown, Facebook, Instagram, Globe, Phone } from 'lucide-react'
+import { MessageSquare, Search, User, ChevronRight, X, RefreshCw, Send, Zap, HelpCircle, ToggleLeft, ToggleRight, Pencil, Check, ChevronDown, Facebook, Instagram, Globe, Phone, Star } from 'lucide-react'
 import { Badge, Input, message as antMessage, Tooltip } from 'antd'
 
 // Small read-only pill that tells the agent which channel the customer is
@@ -56,6 +56,13 @@ export default function ConversationsView() {
   const [editedContent, setEditedContent] = useState('')
   const [sentSuggestionIds, setSentSuggestionIds] = useState(new Set())
   const [expandedSentIds, setExpandedSentIds] = useState(new Set())
+  // Set<message_id> for messages this merchant has already marked as
+  // style examples. Loaded on conversation open + updated optimistically
+  // on toggle. Also holds a map message_id -> style_example_id so we can
+  // hit the unmark endpoint without a second lookup.
+  const [markedExampleMessageIds, setMarkedExampleMessageIds] = useState(new Set())
+  const [messageToStyleExampleId, setMessageToStyleExampleId] = useState({})
+  const [markingMessageId, setMarkingMessageId] = useState(null)
   const messagesEndRef = useRef(null)
   const pollIntervalRef = useRef(null)
 
@@ -148,6 +155,71 @@ export default function ConversationsView() {
     }
   }, [])
 
+  // Fetch this merchant's marked style examples (all-time, small list of
+  // ~50-200) and build a lookup by source_message_id. Called on
+  // conversation open — the marked-status Star icon needs to persist
+  // across page refreshes.
+  const fetchMarkedExamples = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/sales-ai/style-examples/`, { headers: getHeaders() })
+      if (!res.ok) return
+      const data = await res.json()
+      const ids = new Set()
+      const map = {}
+      for (const ex of (data.examples || [])) {
+        if (ex.source_message_id) {
+          ids.add(ex.source_message_id)
+          map[ex.source_message_id] = ex.id
+        }
+      }
+      setMarkedExampleMessageIds(ids)
+      setMessageToStyleExampleId(map)
+    } catch (e) {
+      console.warn('Failed to load style examples:', e)
+    }
+  }, [])
+
+  const toggleStyleExample = async (messageId, isCurrentlyMarked) => {
+    if (markingMessageId) return
+    setMarkingMessageId(messageId)
+    try {
+      if (isCurrentlyMarked) {
+        const exampleId = messageToStyleExampleId[messageId]
+        if (!exampleId) {
+          antMessage.warning('Cannot unmark: no style example ID cached.')
+          return
+        }
+        const res = await fetch(
+          `${API_BASE}/sales-ai/style-examples/${exampleId}/unmark/`,
+          { method: 'POST', headers: getHeaders() }
+        )
+        if (!res.ok) throw new Error('unmark failed')
+        setMarkedExampleMessageIds(prev => {
+          const next = new Set(prev); next.delete(messageId); return next
+        })
+        antMessage.success('Unmarked')
+      } else {
+        const res = await fetch(`${API_BASE}/sales-ai/style-examples/mark/`, {
+          method: 'POST',
+          headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message_id: messageId }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'mark failed' }))
+          throw new Error(err.error || 'mark failed')
+        }
+        const data = await res.json()
+        setMarkedExampleMessageIds(prev => new Set(prev).add(messageId))
+        setMessageToStyleExampleId(prev => ({ ...prev, [messageId]: data.id }))
+        antMessage.success('Marked as style example — the AI will start using this voice.')
+      }
+    } catch (e) {
+      antMessage.error(e.message || 'Failed to update.')
+    } finally {
+      setMarkingMessageId(null)
+    }
+  }
+
   // Handle selecting a conversation
   const handleSelectConversation = async (conv) => {
     setSentSuggestionIds(new Set())
@@ -156,6 +228,7 @@ export default function ConversationsView() {
     setEditedContent('')
     setSelectedConversation({ ...conv, messages: [] })
     setMessagesLoading(true)
+    fetchMarkedExamples()  // fire and forget — Star state fills in when it lands
     const result = await fetchMessages(conv.id)
     if (result !== null) {
       const { messages, mode } = result
@@ -613,10 +686,13 @@ export default function ConversationsView() {
               }
 
               // Regular customer and assistant messages
+              const isNonCustomer = msg.sender !== 'customer'
+              const isMarkedExample = markedExampleMessageIds.has(msg.id)
+              const isMarking = markingMessageId === msg.id
               return (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.sender === 'customer' ? '' : 'justify-end'}`}
+                  className={`flex items-end gap-1.5 ${msg.sender === 'customer' ? '' : 'justify-end'} group`}
                 >
                   <div
                     className={`max-w-[70%] px-4 py-2 rounded-2xl ${
@@ -630,6 +706,24 @@ export default function ConversationsView() {
                       {msg.time}
                     </p>
                   </div>
+                  {isNonCustomer && msg.content && (
+                    <Tooltip title={isMarkedExample ? 'Unmark as style example' : 'Mark as style example — the AI will learn this voice'}>
+                      <button
+                        type="button"
+                        onClick={() => toggleStyleExample(msg.id, isMarkedExample)}
+                        disabled={isMarking}
+                        className={`p-1 rounded transition-opacity ${
+                          isMarkedExample ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                        } ${isMarking ? 'cursor-wait' : 'hover:bg-gray-100'}`}
+                        aria-label={isMarkedExample ? 'Unmark' : 'Mark as style example'}
+                      >
+                        <Star
+                          size={16}
+                          className={isMarkedExample ? 'text-yellow-400 fill-yellow-400' : 'text-gray-400'}
+                        />
+                      </button>
+                    </Tooltip>
+                  )}
                 </div>
               )
             })}
