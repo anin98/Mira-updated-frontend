@@ -220,31 +220,60 @@ export default function Chat() {
     if (!isAuthenticated) localStorage.setItem('chat_conversations', JSON.stringify(updatedConversations))
   }
 
-  const sendMessage = async (content) => {
-    if (!content.trim() || loading) return
+  // Upload one image to FastAPI, return the pre-signed S3 URL. Called by
+  // ChatInput before sending a message so image_urls arrive on the /chat
+  // POST as concrete URLs the visual-search pipeline can embed. Returns
+  // null on failure — the caller decides whether to show an error.
+  const uploadImage = async (file) => {
+    const token = localStorage.getItem('access_token')
+    const headers = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    } else {
+      headers['X-Widget-Key'] = API_CONFIG.WIDGET_KEY
+    }
+    const form = new FormData()
+    form.append('image', file)
+    try {
+      const res = await fetch(`${API_CONFIG.CHAT_URL}/widget/upload-image`, {
+        method: 'POST',
+        headers,
+        body: form,
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.image_url || null
+    } catch {
+      return null
+    }
+  }
+
+  const sendMessage = async (content, imageUrls = []) => {
+    if ((!content.trim() && imageUrls.length === 0) || loading) return
 
     // 1. Setup Session
     let activeSessionId = sessionId;
     if (!activeSessionId) {
       activeSessionId = uuidv4()
       setSessionId(activeSessionId)
-      
+
       // Update sidebar list immediately
       const newConvo = {
         id: activeSessionId,
-        title: content.slice(0, 30) + '...',
+        title: (content || '[image]').slice(0, 30) + '...',
         updatedAt: new Date().toISOString()
       }
       setConversations([newConvo, ...conversations])
       setCurrentConversationId(activeSessionId)
     }
 
-    // 2. Add User Message UI
+    // 2. Add User Message UI (attach images so the bubble shows what was sent)
     const userMessage = {
       id: uuidv4(),
-      content,
+      content: content || (imageUrls.length ? '📷' : ''),
       role: 'user',
       timestamp: new Date().toISOString(),
+      images: imageUrls.length ? imageUrls : undefined,
     }
     const updatedMessages = [...messages, userMessage]
     setMessages(updatedMessages)
@@ -277,11 +306,12 @@ export default function Chat() {
         headers['X-Widget-Key'] = API_CONFIG.WIDGET_KEY
       }
       const body = isAnon
-        ? { message: content, session_id: activeSessionId }
+        ? { message: content || '(image)', session_id: activeSessionId, image_urls: imageUrls }
         : {
-            messages: [{ role: 'user', content }],
+            messages: [{ role: 'user', content: content || '(image)' }],
             session_id: activeSessionId,
             company_id: API_CONFIG.COMPANY_ID || 1,
+            image_urls: imageUrls,
           }
 
       const response = await fetch(url, {
@@ -450,7 +480,7 @@ export default function Chat() {
           </div>
         </div>
 
-        <ChatInput onSend={sendMessage} disabled={loading} />
+        <ChatInput onSend={sendMessage} onUpload={uploadImage} disabled={loading} />
       </div>
     </div>
   )
